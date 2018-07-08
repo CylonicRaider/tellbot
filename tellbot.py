@@ -1544,7 +1544,7 @@ class TellBot(basebot.Bot):
             elif cmdline[0] == '!seen':
                 self._log_command(cmdline)
                 # Parse arguments.
-                users = OrderedSet.firstel()
+                users, ping = OrderedSet.firstel(), False
                 it = iter(cmdline[1:])
                 while 1:
                     arg, cnt = parse_userlist(users, {}, it)
@@ -1552,6 +1552,8 @@ class TellBot(basebot.Bot):
                         break
                     elif arg is Ellipsis:
                         return
+                    elif arg == '--ping':
+                        ping = True
                     elif arg.startswith('--'):
                         reply('Please specify users or groups only.')
                         return
@@ -1573,13 +1575,16 @@ class TellBot(basebot.Bot):
                         pm = ' (1 pending message)'
                     else:
                         pm = ' (%s pending messages)' % unread
-                    fnick = titlefirst(format_nick((user, nick), True))
+                    fnick = format_nick((user, nick), ping)
+                    if ping:
+                        # Do not title-case raw nicknames.
+                        fnick = titlefirst(fnick)
                     if seen[1] is None:
                         reply('%s not seen%s.' % (fnick, pm))
                         continue
                     if bnn(nick) != bnn(seen[0]):
                         comment = ' (as %s)' % format_nick((user, seen[0]),
-                                                           True)
+                                                           ping)
                     else:
                         comment = ''
                     if seen[3] is None:
