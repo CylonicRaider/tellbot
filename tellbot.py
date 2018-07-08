@@ -1575,10 +1575,7 @@ class TellBot(basebot.Bot):
                         pm = ' (1 pending message)'
                     else:
                         pm = ' (%s pending messages)' % unread
-                    fnick = format_nick((user, nick), ping)
-                    if ping:
-                        # Do not title-case raw nicknames.
-                        fnick = titlefirst(fnick)
+                    fnick = format_nick((user, nick), ping, True)
                     if seen[1] is None:
                         reply('%s not seen%s.' % (fnick, pm))
                         continue
