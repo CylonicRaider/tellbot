@@ -333,24 +333,26 @@ meantime.
 
 ### !seen
 
-    !seen <user-list>
+    !seen [--ping] <user-list>
 
 Reply with time intervals since the users in [`user-list`](#user-lists) were
 last seen (_i.e._ posted something in a room observed by `@TellBot` whilst it
 was running), the rooms they were in, and counts of messages pending delivery
 to them.
 
+Unless `--ping` is passed, users are not @-mentioned.
+
 #### Examples
 
     !seen @person1
-      @person1 last seen here on {some date}, 5m 2s ago.
+      person1 last seen here on {some date}, 5m 2s ago.
 
-    !seen @person2
+    !seen --ping @person2
       @person2 not seen (3 pending messages).
 
     !seen *group
-      @person3 last seen here on {some date}, 1d 4h 5s ago (1 pending message).
-      @person4 last seen in &test on {some date}, 41d 23h 59m ago.
+      person3 last seen here on {some date}, 1d 4h 5s ago (1 pending message).
+      person4 last seen in &test on {some date}, 41d 23h 59m ago.
 
 ## User lists
 
