@@ -274,17 +274,18 @@ Unless `--ping` is specified, users are not pinged.
 
 ### !alias and !unalias
 
-    !alias [--ping] @<user> [<user-list>]
+    !alias [--ping] [@<user> [<user-list>]]
     !unalias [--ping] @<user> <user-list>
 
 Alias together multiple users (along with all their former aliases) and/or
-remove some aliases of a user.
+remove some aliases of a user, or display the aliases of a user.
 
 `!alias` builds the given [`user-list`](#user-lists) — which may not contain
 groups — starting from the current set of aliases of `user`, extends the list
 by all other aliases of users contained in the list (*except* `user`), and
 installs the result as a new alias list instead of the former one of `user`
-(and any added members).
+(and any added members). A bare `!alias` is a shortcut for querying the
+aliases of the user who invoked the command.
 
 `!unalias` builds the `user-list` — which again may contain no groups —
 starting from the empty list and removes the entries of `user-list` from the
