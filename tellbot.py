@@ -1516,8 +1516,12 @@ class TellBot(basebot.Bot):
                               USERSPEC_HELP)
                         return
                 if base is None:
-                    reply('Please specify an alias to show or change.')
-                    return
+                    if cmdline[0] == '!unalias':
+                        reply('Please specify an alias to change.')
+                        return
+                    base = sender
+                    old_names = [base]
+                    names = OrderedSet.firstel(old_names)
                 elif cmdline[0] == '!unalias' and count == 0:
                     reply('Nothing to be done.')
                     return
