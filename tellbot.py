@@ -1485,7 +1485,7 @@ class TellBot(basebot.Bot):
             elif cmdline[0] in ('!alias', '!unalias'):
                 self._log_command(cmdline)
                 # Parse arguments.
-                base, names, ping = None, None, False
+                base, names, old_names, ping = None, None, None, False
                 it, count = iter(cmdline[1:]), 0
                 while 1:
                     arg, cnt = parse_userlist(names, {}, it,
@@ -1519,8 +1519,10 @@ class TellBot(basebot.Bot):
                     if cmdline[0] == '!unalias':
                         reply('Please specify an alias to change.')
                         return
-                    base = sender
-                    old_names = [base]
+                    base = distr.query_user(sender[0])
+                    old_names = distr.query_aliases(base[0])
+                    if not old_names:
+                        old_names = [distr.normalize_user(base[0])]
                     names = OrderedSet.firstel(old_names)
                 elif cmdline[0] == '!unalias' and count == 0:
                     reply('Nothing to be done.')
