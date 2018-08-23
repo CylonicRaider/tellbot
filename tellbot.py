@@ -1158,7 +1158,9 @@ class TellBot(basebot.Bot):
                 elif arg.startswith('--'): # Option.
                     return arg, count
                 elif arg.startswith('-'): # Avoid confusion with above.
-                    reply('Single-letter options are not supported.')
+                    reply('Please precede options with double dashes, or '
+                          'delimit the beginning of your message with a '
+                          'double dash (--).')
                     return Ellipsis, count
                 else: # Start of normal arguments.
                     return arg, count
