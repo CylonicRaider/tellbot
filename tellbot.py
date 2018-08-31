@@ -1619,6 +1619,7 @@ class TellBot(basebot.Bot):
                         break
                     elif arg.startswith('-'):
                         reply('Unknown option %s.' % arg)
+                        return
 
                 # Deliver messages.
                 self.deliver_notifies(distr, sender, meta['reply'], stale)
