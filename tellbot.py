@@ -1618,7 +1618,7 @@ class TellBot(basebot.Bot):
                     elif arg == '--':
                         break
                     elif arg.startswith('-'):
-                        reply('Unknown option %r.' % arg)
+                        reply('Unknown option %s.' % arg)
 
                 # Deliver messages.
                 self.deliver_notifies(distr, sender, meta['reply'], stale)
