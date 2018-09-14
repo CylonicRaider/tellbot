@@ -538,13 +538,13 @@ class NotificationDistributorSQLite(NotificationDistributor):
                                   'value TEXT'
                               ')')
             # Schema upgrades.
-            self.curs.execute('PRAGMA table_info(seen);')
+            self.curs.execute('PRAGMA table_info(seen)')
             seencols = set(i[1] for i in self.curs.fetchall())
             for coldesc in ('unread INTEGER', 'room TEXT'):
                 if coldesc.partition(' ')[0] not in seencols:
                     self.curs.execute('ALTER TABLE seen '
                         'ADD COLUMN ' + coldesc)
-            self.curs.execute('PRAGMA table_info(messages);')
+            self.curs.execute('PRAGMA table_info(messages)')
             msgcols = set(i[1] for i in self.curs.fetchall())
             for coldesc in ('priority TEXT', 'room TEXT'):
                 if coldesc.partition(' ')[0] not in msgcols:
