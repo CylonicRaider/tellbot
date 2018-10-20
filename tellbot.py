@@ -1521,10 +1521,10 @@ class TellBot(basebot.Bot):
                     if cmdline[0] == '!unalias':
                         reply('Please specify an alias to change.')
                         return
-                    base = distr.query_user(sender[0])
+                    base = distr.query_user(sender[1])
                     old_names = distr.query_aliases(base[0])
                     if not old_names:
-                        old_names = [distr.normalize_user(base[0])]
+                        old_names = [distr.normalize_user(sender[1])]
                     names = OrderedSet.firstel(old_names)
                 elif cmdline[0] == '!unalias' and count == 0:
                     reply('Nothing to be done.')
