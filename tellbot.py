@@ -148,6 +148,10 @@ class OrderedSet:
         if not isinstance(other, OrderedSet): return NotImplemented
         return self.set == other.set
 
+    def __repr__(self):
+        return '%s(%r, key=%r)' % (self.__class__.__name__, self.list,
+                                   self.key)
+
     def copy(self):
         return self.__class__(self, key=self.key)
 
@@ -908,16 +912,16 @@ class TellBot(basebot.Bot):
                 segnames.append(tr(el))
                 seen.add(n)
             else:
-                nc = [i for i in c if i[0] not in seen]
+                nc = OrderedSet.firstel(i for i in c if i[0] not in seen)
                 if subject in nc and prevent_self:
-                    nc.remove(subject)
+                    nc.discard(subject)
                     reasons.pop(subject[0], None)
                     users.discard(subject)
                 for normnick, nick in nc:
                     reasons[normnick] = n
                 segnames.append(n)
-                segments[n] = collections.OrderedDict(
-                    (i[0], tr(i)) for i in nc)
+                segments[n] = collections.OrderedDict((i[0], tr(i))
+                                                      for i in nc)
                 seen.update(i[0] for i in nc)
         parts = []
         for n in segnames:
@@ -1007,7 +1011,18 @@ class TellBot(basebot.Bot):
                     reason=None, priority='normal', ping=False):
         distr, mailer = self.manager.distributor, self.manager.mailer
 
-        # Prevent messages to oneself unless explicit.
+        # Ensure that multiple aliases of the same user do not get the same
+        # message.
+        sender = distr.query_user(sender[1])
+        recipients = OrderedSet.firstel(distr.query_user(r[1])
+                                        for r in recipients)
+        new_groups = collections.OrderedDict()
+        for source, names in groups.items():
+            new_groups[source] = [distr.query_user(e[1]) for e in names]
+        groups = new_groups
+
+        # Format the recipient list and prevent messages to oneself unless
+        # explicit (as a side effect).
         reclist, reasons = self._format_users(recipients, groups, sender,
                                               True, ping)
 
