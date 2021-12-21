@@ -957,7 +957,7 @@ class TellBot(basebot.Bot):
                 queue.task_done()
 
     def _schedule_task(self, delay, func, *args, **kwds):
-        tid = kwds.pop('_id')
+        tid = kwds.pop('_id', None)
         t = lambda: func(*args, **kwds)
         t.time = time.time() + delay
         t.canceled = False
