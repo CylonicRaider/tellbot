@@ -887,6 +887,7 @@ class TellBot(basebot.Bot):
         self._runner = None
         self._task_queue = None
         self._pending = {}
+        self._deferred_calls = []
 
     def _format_nick(self, nick, ping=True, subject=None, title=False):
         nnick = basebot.normalize_nick(nick)
@@ -972,9 +973,15 @@ class TellBot(basebot.Bot):
             except KeyError:
                 pass
 
+    def _defer(self, func, *args, **kwds):
+        self._deferred_calls.append(lambda: func(*args, **kwds))
+
     def handle_chat_ex(self, msg, meta):
+        def reply(text):
+            self._defer(raw_reply, text)
+
         basebot.Bot.handle_chat_ex(self, msg, meta)
-        distr, reply = self.manager.distributor, meta['reply']
+        distr, raw_reply = self.manager.distributor, meta['reply']
         user, now = distr.normalize_user(msg['sender']['name']), time.time()
 
         # Update online time database.
@@ -999,7 +1006,8 @@ class TellBot(basebot.Bot):
             if re.match(r'!(inbox|boop)\b', msg['content']):
                 pass
             elif oldest is not None and oldest >= now - INBOX_CUTOFF:
-                self.deliver_notifies(distr, user, reply, False)
+                self.deliver_notifies(distr, user, raw_reply, False,
+                                      defer=True)
             elif unread == 1:
                 reply('You have 1 unread message; use !inbox to read it. ' +
                       REPLY_HELP)
@@ -1057,7 +1065,8 @@ class TellBot(basebot.Bot):
         # Reply.
         reply('Will tell %s.' % reclist)
 
-    def deliver_notifies(self, distr, sender, reply, stale=False):
+    def deliver_notifies(self, distr, sender, reply, stale=False,
+                         defer=False):
         # Format a delivery reason.
         def format_reason(src):
             if src.startswith('<re> '):
@@ -1098,7 +1107,10 @@ class TellBot(basebot.Bot):
         now = time.time()
         messages = distr.pop_messages(sender[0], stale)
         msgitr = iter(messages)
-        deliver_message()
+        if defer:
+            self._defer(deliver_message)
+        else:
+            deliver_message()
         distr.update_seen(sender[0], sender[1], now, 0,
                           self.roomname)
 
@@ -1643,6 +1655,14 @@ class TellBot(basebot.Bot):
         finally:
             distr.__exit__(None, None, None)
             flush()
+
+    def handle_any(self, packet):
+        basebot.Bot.handle_any(self, packet)
+        deferred = self._deferred_calls[:]
+        if not deferred: return
+        self._deferred_calls[:] = ()
+        for call in deferred:
+            call()
 
     def main(self):
         self._spawn_task_runner()
