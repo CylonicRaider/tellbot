@@ -1016,7 +1016,7 @@ class TellBot(basebot.Bot):
                        'them. ' % unread) + REPLY_HELP)
 
     def send_notify(self, sender, recipients, groups, text, reply,
-                    reason=None, priority='normal', ping=False):
+                    reason=None, priority='NORMAL', ping=False):
         distr, mailer = self.manager.distributor, self.manager.mailer
 
         # Ensure that multiple aliases of the same user do not get the same
