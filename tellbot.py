@@ -614,7 +614,7 @@ class NotificationDistributorSQLite(NotificationDistributor):
             for e in self.curs.fetchall():
                 if entry is None or e[1] is not None and e[1] > entry[1]:
                     entry = e
-                unread += e[2]
+                unread += e[2] or 0
             if not entry: return None
             return (entry[0], entry[1], unread, entry[3])
 
