@@ -40,7 +40,7 @@ blob/master/USAGE.md.
 
 REPLY_HELP = ('Reply with a !reply to any single message to reply to the '
     'author, or with a !reply-all to reply to the group the message was '
-    'sent to (or the sender if none).')
+    'sent to (or the author if none).')
 USERSPEC_HELP = ('Nicknames must be preceded by an @ sign and may not '
     'contain spaces.')
 
