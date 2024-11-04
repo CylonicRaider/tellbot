@@ -1326,6 +1326,9 @@ class TellBot(basebot.Bot):
                     reply('Message not recognized.')
                     return
                 recipient = distr.normalize_user(cause['from'])
+                if len(cmdline) == 1:
+                    reply('Nothing to reply with.')
+                    return
 
                 # Send message.
                 self.send_notify(
