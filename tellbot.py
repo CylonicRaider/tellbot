@@ -233,7 +233,7 @@ class NotificationDistributor:
         raise NotImplementedError
     def query_aliases(self, base):
         raise NotImplementedError
-    def update_aliases(self, base, names):
+    def update_aliases(self, base, names, new_base=None, merge=True):
         raise NotImplementedError
     def query_seen(self, user):
         raise NotImplementedError
@@ -308,29 +308,39 @@ class NotificationDistributorMemory(NotificationDistributor):
         with self.lock:
             return self.aliases.get(base, [])
 
-    def update_aliases(self, base, names):
+    def update_aliases(self, base, names, new_base=None, merge=True):
+        if new_base is not None and new_base not in [x[0] for x in names]:
+            raise RuntimeError('New base name must be one of the aliases')
         with self.lock:
-            # Remove backreferences.
+            # Collect new alias set.
+            nn = OrderedSet.firstel(names)
+            seen, errors = set(), []
+            for n, d in list(nn): # nn is modified in the loop.
+                k = self.revaliases.get(n, n)
+                if k == base or k in seen: continue
+                seen.add(k)
+                na = self.aliases.get(k, ())
+                if not merge and len(na) > 1:
+                    errors.append(((n, d), na))
+                nn.extend(na)
+            # Report errors if any.
+            if errors: return (None, None, errors)
+            # Clean up old aliases.
             for n in self.aliases.pop(base, ()):
                 self.revaliases.pop(n[0], None)
-            # Ensure names is not empty.
-            if not names: return (None, names)
-            # Absorb other aliases.
-            nn = OrderedSet.firstel(names)
-            seen = set()
-            for n in [x[0] for x in nn]: # Avoid concurrent modification.
-                k = self.revaliases.get(n, n)
-                if k in seen: continue
-                seen.add(k)
-                nn.extend(self.aliases.pop(k, ()))
-            # Choose new base if necessary.
-            if (base, None) not in nn: base = names[0][0]
-            # Install alias table.
+            # Skip the below code if the alias set has become empty.
+            if not nn: return (None, list(nn), None)
+            # Update base if requested or necessary.
+            if new_base is not None:
+                base = new_base
+            elif (base, None) not in nn:
+                base = names[0][0]
+            assert (base, None) in nn
+            # Install new alias set.
             self.aliases[base] = list(nn)
-            # Install backreferences.
             for n, r in nn: self.revaliases[n] = base
             # Return new values.
-            return (base, self.aliases[base])
+            return (base, list(nn), None)
 
     def query_seen(self, user):
         with self.lock:
@@ -583,26 +593,39 @@ class NotificationDistributorSQLite(NotificationDistributor):
                 'WHERE base = ? ORDER BY _rowid_', (base,))
             return self.curs.fetchall()
 
-    def update_aliases(self, base, names):
+    def update_aliases(self, base, names, new_base=None, merge=True):
+        if new_base is not None and new_base not in [x[0] for x in names]:
+            raise RuntimeError('New base name must be one of the aliases')
         with self.lock.committing:
-            # Discard old aliases.
-            self.curs.execute('DELETE FROM aliases WHERE base = ?', (base,))
-            # Shortcut if there are no aliases to be added.
-            if not names: return (None, names)
-            # Merge in other aliases if desired.
+            errors = []
+            # Gather new alias list.
             nn = OrderedSet.firstel(names)
-            for n in [x[0] for x in nn]: # Concurrent modification.
+            for n, d in list(nn): # nn is modified in the loop.
                 self.curs.execute('SELECT user, name FROM aliases '
-                    'WHERE base = (SELECT base FROM aliases WHERE user = ?) '
-                    'ORDER BY _rowid_', (n,))
-                nn.extend(self.curs.fetchall())
-            # Check if we need a new base.
-            if (base, None) not in nn: base = names[0][0]
-            # Poke all that back into the DB.
+                    'WHERE base <> ? AND base = (SELECT base FROM aliases '
+                                                'WHERE user = ?) '
+                    'ORDER BY _rowid_', (base, n))
+                na = self.curs.fetchall()
+                if not merge and len(na) > 1:
+                    errors.append(((n, d), na))
+                nn.extend(na)
+            # Report errors if merging multiple alias sets is disallowed.
+            if errors: return (None, None, errors)
+            # Discard old alias set.
+            self.curs.execute('DELETE FROM aliases WHERE base = ?', (base,))
+            # Skip the below code if the alias set has become empty.
+            if not nn: return (None, list(nn), None)
+            # Update base if requested or necessary.
+            if new_base is not None:
+                base = new_base
+            elif (base, None) not in nn:
+                base = names[0][0]
+            assert (base, None) in nn
+            # Insert new aliases.
             self.curs.executemany('INSERT OR REPLACE INTO aliases '
                 'VALUES (?, ?, ?)', ((base, n, m) for n, m in nn))
-            # Return new values.
-            return (base, list(nn))
+            # Return final alias set.
+            return (base, list(nn), None)
 
     def query_seen(self, user):
         with self.lock:
@@ -1517,7 +1540,8 @@ class TellBot(basebot.Bot):
             elif cmdline[0] in ('!alias', '!unalias'):
                 self._log_command(cmdline)
                 # Parse arguments.
-                base, names, old_names, ping = None, None, None, False
+                raw_base, base, names, old_names = None, None, None, None
+                set_base, force, ping = False, False, False
                 it, count = iter(cmdline[1:]), 0
                 while 1:
                     arg, cnt = parse_userlist(names, {}, it,
@@ -1529,6 +1553,7 @@ class TellBot(basebot.Bot):
                     elif arg is Ellipsis:
                         return
                     elif arg.startswith('@'):
+                        raw_base = distr.normalize_user(arg[1:])
                         base = distr.query_user(arg[1:])
                         old_names = distr.query_aliases(base[0])
                         if not old_names:
@@ -1537,6 +1562,10 @@ class TellBot(basebot.Bot):
                             names = OrderedSet.firstel(old_names)
                         else:
                             names = OrderedSet.firstel()
+                    elif arg == '--set-primary':
+                        set_base = True
+                    elif arg == '--force':
+                        force = True
                     elif arg == '--ping':
                         ping = True
                     elif arg.startswith('--') and arg != '--':
@@ -1547,6 +1576,7 @@ class TellBot(basebot.Bot):
                               'single name to display aliases of. (%s)' %
                               USERSPEC_HELP)
                         return
+                has_changes = (count != 0 or set_base)
                 if base is None:
                     if cmdline[0] == '!unalias':
                         reply('Please specify an alias to change.')
@@ -1556,21 +1586,29 @@ class TellBot(basebot.Bot):
                     if not old_names:
                         old_names = [distr.normalize_user(sender[1])]
                     names = OrderedSet.firstel(old_names)
-                elif cmdline[0] == '!unalias' and count == 0:
+                elif cmdline[0] == '!unalias' and not has_changes:
                     reply('Nothing to be done.')
                     return
 
                 # Display old membership.
                 display_aliases(base, old_names, ping,
-                                ('' if count == 0 else 'before'))
-                if count == 0: return
+                                ('before' if has_changes else ''))
+                if not has_changes: return
 
                 # Apply changes.
                 if cmdline[0] == '!unalias':
                     removes = names
                     names = OrderedSet.firstel(old_names)
                     names.discard_all(removes)
-                nbase, nnames = distr.update_aliases(base[0], list(names))
+                nbase, nnames, errors = distr.update_aliases(base[0],
+                    list(names), new_base=(raw_base[0] if set_base else None),
+                    merge=force)
+                if errors:
+                    reply('Error: Some of the names already have aliases:')
+                    for cb, cnn in errors:
+                        display_aliases(cb, cnn, ping, '')
+                    reply('No aliases changed (use --force to merge them).')
+                    return
 
                 # Display new membership.
                 if nnames:
