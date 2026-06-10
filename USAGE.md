@@ -1,5 +1,10 @@
 # `@TellBot` usage
 
+`@TellBot` is a mailer bot for Euphoria. It stores messages and delivers them
+upon the next post of the recipient. Messages can be broadcast to groups akin
+to mailing lists and different nicknames of the same user can be aliased
+together.
+
 `@TellBot` has reached all of its intended functionality, and development is
 restricted to maintenance. The command set may change upon popular demand or
 developer decision.
@@ -274,7 +279,7 @@ Unless `--ping` is specified, users are not pinged.
 
 ### !alias and !unalias
 
-    !alias [--ping] [@<user> [<user-list>]]
+    !alias [--ping] [--force] [--set-primary] [@<user> [<user-list>]]
     !unalias [--ping] @<user> <user-list>
 
 Alias together multiple users (along with all their former aliases) and/or
@@ -282,10 +287,10 @@ remove some aliases of a user, or display the aliases of a user.
 
 `!alias` builds the given [`user-list`](#user-lists) — which may not contain
 groups — starting from the current set of aliases of `user`, extends the list
-by all other aliases of users contained in the list (*except* `user`), and
-installs the result as a new alias list instead of the former one of `user`
-(and any added members). A bare `!alias` is a shortcut for querying the
-aliases of the user who invoked the command.
+by all other aliases of users contained in the list (*except* `user`; see also
+`--force`), and installs the result as a new alias list instead of the former
+one of `user` (and any added members). A bare `!alias` is a shortcut for
+querying the aliases of the user who invoked the command.
 
 `!unalias` builds the `user-list` — which again may contain no groups —
 starting from the empty list and removes the entries of `user-list` from the
@@ -293,6 +298,18 @@ alias list of `user`; it cannot add new aliases.
 
 Unless `--ping` is passed, user names are not @-mentioned to avoid
 unnecessary alerting.
+
+Unless `--force` is passed, `!alias` refuses to merge together non-singleton
+alias sets. That is, if any of the new aliases have other aliases of their
+own, `!alias` without `--force` aborts. This protects against some thoughtless
+uses of `!alias`.
+
+If `--set-primary` is passed, `!alias` changes the "primary" alias of the
+alias set being edited to `user`. The primary alias is used for the headings
+of alias listings and for email notifications.
+
+`--force` and `--set-primary` can also be passed to `!unalias`, and operate in
+the same manner, but are somewhat less useful in conjunction with it.
 
 For consistency's sake, a user is always considered to have a one-entry alias
 set if no other aliases are present (or the observable behavior should be
@@ -325,7 +342,17 @@ meantime.
       Aliases of @userX before: userA, userB, and userX
       Aliases of @userA after: userA and userB
 
+    !alias --set-primary @userB
+      Aliases of @userA before: userA and userB
+      Aliases of @userB after: userA and userB
+
     !alias @user1 @userA
+      Aliases of @user1 before: user1, user2, and user3
+      Error: Some of the names already have aliases:
+      Aliases of @userA: userA and userB
+      No aliases changed (use --force to merge them).
+
+    !alias --force @user1 @userA
       Aliases of @user1 before: user1, user2, and user3
       Aliases of @user1 after: user1, user2, user3, userA, and userB
 
