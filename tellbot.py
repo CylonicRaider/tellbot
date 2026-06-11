@@ -1004,11 +1004,14 @@ class TellBot(basebot.Bot):
             self._defer(raw_reply, text)
 
         basebot.Bot.handle_chat_ex(self, msg, meta)
-        distr, raw_reply = self.manager.distributor, meta['reply']
-        user, now = distr.normalize_user(msg['sender']['name']), time.time()
+        if meta['edit'] or meta['long']: return
+
+        now = time.time()
+        distr = self.manager.distributor
+        user = distr.normalize_user(msg['sender']['name'])
+        raw_reply = meta['reply']
 
         # Update online time database.
-        if meta['edit'] or meta['long']: return
         unread, oldest, newest = distr.message_bounds(user[0])
         update = distr.update_seen(user[0], user[1], now, unread,
                                    self.roomname)
