@@ -999,11 +999,11 @@ class TellBot(basebot.Bot):
     def _defer(self, func, *args, **kwds):
         self._deferred_calls.append(lambda: func(*args, **kwds))
 
-    def handle_chat_ex(self, msg, meta):
+    def _run_chat_handlers(self, msg, meta):
         def reply(text):
             self._defer(raw_reply, text)
 
-        basebot.Bot.handle_chat_ex(self, msg, meta)
+        basebot.Bot._run_chat_handlers(self, msg, meta)
         if meta['edit'] or meta['long']: return
 
         now = time.time()
